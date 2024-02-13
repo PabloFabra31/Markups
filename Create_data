@@ -1,13 +1,160 @@
+packages <- c("tidyverse", "vctrs", "lubridate", "OECD", "eurostat", "tidyBdE", "rdbnomics", "zoo")
+
+install.packages(setdiff(packages, rownames(installed.packages())))
+
 library(tidyverse)
 library(lubridate)
+library(OECD)
+library(eurostat)
+library(tidyBdE)
+library(rdbnomics)
 library(zoo)
-# load("C:/Users/User/Downloads/raw_data_sabi.RData")
-# load("C:/Users/User/Downloads/prepared_data.RData")
-# load("C:/Users/User/Downloads//macro_data.RData")
+library(dplyr)
+
+span = 1995:2020
+
+# ---------------------------------------------------------------------------------------- # 
+# Annual aggregates 
+# ---------------------------------------------------------------------------------------- #
+gdp = get_eurostat("nama_10_gdp")%>%  rename(time = `TIME_PERIOD`) %>% mutate(time = year(as.Date(time,"%Y-%m-%d"))) %>% 
+  filter(geo == "ES" & time %in% span & na_item == "B1GQ" & unit %in% c("CP_MEUR","CLV15_MEUR","PD15_EUR")) %>% 
+  select(-c(geo,na_item, freq)) %>% pivot_wider(names_from = unit, values_from = values) %>% 
+  purrr::set_names("time","rgdp","gdp","gdp.def") %>% mutate_at(vars(2,3), ~.*1e6) %>% 
+  mutate(gdp.def = gdp.def/100)
+
+pop = get_eurostat("nama_10_pe") %>%rename(time = `TIME_PERIOD`) %>%  mutate(time = year(as.Date(time,"%Y-%m-%d"))) %>%
+  filter(geo == "ES" & time %in% span & na_item == "POP_NC" & unit == "THS_PER") %>% 
+  select(time,values) %>% rename(pop = values) %>% mutate(pop = pop*1e3)
+
+cpi = get_eurostat("prc_hicp_aind") %>% rename(time = `TIME_PERIOD`) %>% mutate(time = year(as.Date(time,"%Y-%m-%d"))) %>% 
+  filter(geo == "ES" & time %in% span & coicop == "CP00" & unit == "INX_A_AVG") %>% 
+  select(time,values) %>% rename(cpi = values) %>% mutate(cpi = cpi/100)
+
+tfp.bde = bde_series_full_load("SI_1_4.csv") %>% mutate(Date = year(as.Date(Date,"%Y-%m-%d"))) %>% 
+  filter(Date %in% span) %>% select(Date,SI_1_4.6) %>% purrr::set_names("time","tfp") %>% 
+  mutate(tfp = tfp/100)
+
+macro = gdp %>% left_join(pop,by="time") %>% left_join(cpi,by="time") %>% left_join(tfp.bde,by="time") %>% 
+  arrange(time)
+
+# ---------------------------------------------------------------------------------------- #
+# Quarterly aggregates
+# ---------------------------------------------------------------------------------------- #
+gdp_qtr = get_eurostat("NAMQ_10_GDP") %>% rename(time = `TIME_PERIOD`) %>% mutate(time = as.yearqtr(as.Date(time,"%Y-%m-%d"))) %>% 
+  filter(geo == "ES" & na_item == "B1GQ" & unit %in% c("CP_MEUR","CLV15_MEUR","PD15_EUR") & s_adj == c("SCA")) %>% 
+  select(-c(geo,na_item,s_adj,freq)) %>% pivot_wider(names_from = unit, values_from = values) %>% 
+  purrr::set_names("time","rgdp","gdp","gdp.def") %>% mutate_at(vars(2,3), ~.*1e6) %>% 
+  mutate(gdp.def = gdp.def/100)
+
+pop_qrt = get_eurostat("NAMQ_10_PE") %>%rename(time = `TIME_PERIOD`) %>% mutate(time = as.yearqtr(as.Date(time,"%Y-%m-%d"))) %>% 
+  filter(geo == "ES" & na_item == "POP_NC" & unit == "THS_PER" & s_adj == "SCA") %>% 
+  select(time,values) %>% purrr::set_names("time","pop") %>% mutate(pop = pop*1e3)
+
+macro.qtr = gdp_qtr %>% left_join(pop_qrt,by="time")
+
+# ---------------------------------------------------------------------------------------- #
+# OECD turning points
+# ---------------------------------------------------------------------------------------- #
+dates = readr::read_csv("https://www.oecd.org/sdd/leading-indicators/CLI-components-and-turning-points.csv",
+                        show_col_types=F) %>% select(1,14) %>% slice(-c(1:2)) %>%
+  purrr::set_names("date","point") %>% mutate(date = as.Date(parse_date_time(date, orders ='dmy')),
+                                              point = as.numeric(point)) %>%
+  filter(date > "1995-01-01" & date < "2021-12-01") %>% 
+  mutate(pt = ifelse(point == 1,"peak",point), pt = ifelse(point == -1,"trough",pt)) %>% 
+  filter(pt != 0) %>% select(-point) %>% mutate(date = zoo::as.yearmon(date), id = rep(1:4,each=2)) %>% 
+  pivot_wider(id_cols = id, names_from = pt, values_from = date) %>% select(-id)
+
+
+# ---------------------------------------------------------------------------------------- # 
+# Eurostat: National accounts by industry
+# ---------------------------------------------------------------------------------------- #
+sectors = readxl::read_excel("C:/Users/User/Downloads/DE_2022_BBDD_Stock_Ivie_nacional-activosbasicos.xlsx",
+                             sheet="nace_sectors") %>% filter(Exclude == 0) %>% pull(nace_r2)
+
+va_def_sector = get_eurostat("nama_10_a64") %>% rename(time = `TIME_PERIOD`) %>%mutate(time = year(as.Date(time,"%Y-%m-%d"))) %>% 
+  filter(geo == "ES" & na_item == "B1G" & unit == "PD15_NAC") %>% select(nace_r2,time,values) %>% 
+  purrr::set_names("sector","time","va.def") %>% filter(time %in% span, sector %in% sectors) %>% 
+  arrange(time) %>% mutate(va.def = va.def/100)
+
+# ---------------------------------------------------------------------------------------- #
+# IVIE: Stock and services of capital
+# ---------------------------------------------------------------------------------------- #
+corresponce = readxl::read_excel("C:/Users/User/Downloads/DE_2022_BBDD_Stock_Ivie_nacional-activosbasicos.xlsx",
+                                 sheet="correspondence") %>% na.omit() %>% 
+  filter(nace_r2 %in% c("C","C10-C12","C13-C15","C16-C18","C19","C20-C21","C22-C23","C24-C25","C26-C27","C28","C29-C30","C31-C33","F",
+                        "G","H","I","J58-J60","J61","J62-J63","L","M","N"))
+
+
+
+
+
+k_def_sector  = readxl::read_excel("C:/Users/User/Downloads/DE_2022_BBDD_Stock_Ivie_nacional-activosbasicos.xlsx",
+                                                  sheet="DE_2022_BBDD_Stock_Ivie_naciona") %>% 
+  filter(VARIABLE == "InversiÛn bruta", UNIDAD %in% c("Miles de euros constantes base 2015","Miles de euros corrientes"),
+         ACTIVO == "Total sin viviendas") %>% select(RAMA,UNIDAD,6:62) %>% 
+  purrr::set_names("sector","unit",1964:2020) %>% mutate_at(vars(3:59),as.numeric) %>% pivot_longer(!c(sector,unit)) %>% 
+  pivot_wider(names_from = unit, values_from = value) %>% purrr::set_names("ivie_name","time","rgfcf","gfcf") %>% 
+  mutate(time = as.numeric(time), k.def = gfcf/rgfcf) %>% filter(time %in% span) %>% select(ivie_name,time,k.def) %>% 
+  left_join(corresponce,by="ivie_name") %>% select(nace_r2,time,k.def) %>% filter(!is.na(nace_r2)) %>% 
+  rename(sector = nace_r2)
+
+k_def_sector1 = k_def_sector %>% pivot_wider(names_from = sector, values_from = k.def)
+
+ivie_def_sector = va_def_sector %>% left_join(k_def_sector, by = c("sector","time")) %>% select(-va.def) %>% 
+  pivot_wider(names_from = sector, values_from = k.def) %>% mutate_at(vars(4:6),~k_def_sector1$`C16-C18`) %>% 
+  mutate_at(vars(8:9),~k_def_sector1$`C20-C21`) %>% mutate_at(vars(10:11),~k_def_sector1$`C22-C23`) %>% 
+  mutate_at(vars(12:13),~k_def_sector1$`C24-C25`) %>% mutate_at(vars(14:15),~k_def_sector1$`C26-C27`) %>% 
+  mutate_at(vars(17:18),~k_def_sector1$`C29-C30`) %>% mutate_at(vars(19:20),~k_def_sector1$`C31-C33`) %>% 
+  mutate_at(vars(22:24),~k_def_sector1$G) %>% mutate_at(vars(25:29),~k_def_sector1$H) %>% 
+  mutate_at(vars(31:32),~k_def_sector1$`J58-J60`) %>% mutate_at(vars(34),~k_def_sector1$`J62-J63`) %>% 
+  mutate_at(vars(36:40),~k_def_sector1$M) %>% mutate_at(vars(41:44),~k_def_sector1$N) %>% 
+  pivot_longer(!time) %>% purrr::set_names("time","sector","k.def")
+
+# ---------------------------------------------------------------------------------------- #
+# Deflators by sector
+# ---------------------------------------------------------------------------------------- #
+sectors.def = data.frame(nace2 = c(10:12,13:15,16:18,19,20,21,22:23,24:25,26,27,28,29:30,31:33,
+                                   41:43,45:47,49:53,55:56,58:60,61:61,62:63,68,69:75,77:82)) %>% 
+  mutate(sector = ifelse(nace2 %in% 10:12, "C10-C12",NA), sector = ifelse(nace2 %in% 13:15, "C13-C15",sector),
+         sector = ifelse(nace2 %in% 16, "C16",sector), sector = ifelse(nace2 %in% 17, "C17",sector), 
+         sector = ifelse(nace2 %in% 18, "C18",sector), sector = ifelse(nace2 %in% 19, "C19",sector), 
+         sector = ifelse(nace2 %in% 20, "C20",sector), sector = ifelse(nace2 %in% 21, "C21",sector), 
+         sector = ifelse(nace2 %in% 22, "C22",sector), sector = ifelse(nace2 %in% 23, "C23",sector),
+         sector = ifelse(nace2 %in% 24, "C24",sector), sector = ifelse(nace2 %in% 25, "C25",sector), 
+         sector = ifelse(nace2 %in% 26, "C26",sector), sector = ifelse(nace2 %in% 27, "C27",sector), 
+         sector = ifelse(nace2 %in% 28, "C28",sector), sector = ifelse(nace2 %in% 29, "C29",sector),
+         sector = ifelse(nace2 %in% 30, "C30",sector), sector = ifelse(nace2 %in% 31:32, "C31_C32",sector),
+         sector = ifelse(nace2 %in% 33, "C33",sector), sector = ifelse(nace2 %in% 41:43, "F",sector),
+         sector = ifelse(nace2 %in% 45, "G45",sector), sector = ifelse(nace2 %in% 46, "G46",sector),
+         sector = ifelse(nace2 %in% 47, "G47",sector), sector = ifelse(nace2 %in% 49, "H49",sector), 
+         sector = ifelse(nace2 %in% 50, "H50",sector), sector = ifelse(nace2 %in% 51, "H51",sector), 
+         sector = ifelse(nace2 %in% 52, "H52",sector), sector = ifelse(nace2 %in% 53, "H53",sector), 
+         sector = ifelse(nace2 %in% 55:56, "I",sector), sector = ifelse(nace2 %in% 58, "J58",sector),
+         sector = ifelse(nace2 %in% 59:60, "J59_J60",sector), sector = ifelse(nace2 %in% 61, "J61",sector),
+         sector = ifelse(nace2 %in% 62:63, "J62_J63",sector), sector = ifelse(nace2 %in% 68, "L",sector),
+         sector = ifelse(nace2 %in% 69:70, "M69_M70",sector), sector = ifelse(nace2 %in% 71, "M71",sector),
+         sector = ifelse(nace2 %in% 72, "M72",sector), sector = ifelse(nace2 %in% 73, "M73",sector),
+         sector = ifelse(nace2 %in% 74:75, "M74_M75",sector), sector = ifelse(nace2 %in% 77, "N77",sector),
+         sector = ifelse(nace2 %in% 78, "N78",sector), sector = ifelse(nace2 %in% 79, "N79",sector),
+         sector = ifelse(nace2 %in% 80:82, "N80-N82",sector))
+
+deflators = va_def_sector %>% left_join(ivie_def_sector, by = c("sector","time")) %>% 
+  left_join(sectors.def, by = "sector") %>% select(-sector) %>% group_by(nace2) %>% 
+  mutate(k.def = imputeTS::na_interpolation(k.def, option = "linear")) %>% ungroup()
+
+
+deflators2 = va_def_sector %>% left_join(ivie_def_sector, by = c("sector","time")) %>% 
+  left_join(sectors.def, by = "sector") %>% group_by(nace2) %>% 
+  mutate(k.def = imputeTS::na_interpolation(k.def, option = "linear")) %>% ungroup()
+
 
 # ---------------------------------------------------------------------------------------- #
 # Get characteristics and financial variables
 # ---------------------------------------------------------------------------------------- #
+# load("C:/Users/User/Downloads/raw_data_sabi.RData")
+# load("C:/Users/User/Downloads/prepared_data.RData")
+# load("C:/Users/User/Downloads//macro_data.RData")
+
 vars_firm = data.all %>% select(1:17,343:346,497) %>% colnames() %>% data.frame() %>% 
   purrr::set_names("variable") %>% pull()
 
