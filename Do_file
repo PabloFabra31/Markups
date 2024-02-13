@@ -1,0 +1,275 @@
+global Pthout "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata"
+global PthEst "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata/Markups2"
+use "$Pthout/input_data2.dta", clear
+
+egen unique_id = group(id)
+xtset unique_id time
+
+
+drop if nace2 == 5
+by nace2: egen iqr_go_emp = iqr(ratio_go_emp)
+
+by nace2: egen iqr_k_pim_emp = iqr(ratio_k_pim_emp)
+
+by nace2: drop if abs(ratio_go_emp) > 3 * iqr_go_emp
+
+by nace2: drop if abs(ratio_k_pim_emp) > 3 * iqr_k_pim_emp
+
+save "$Pthout/input_data2.dta", replace
+
+gen indcode = nace2
+egen unique_id = group(id)
+
+
+levelsof indcode, local(levels)
+foreach s of local levels {
+use "$Pthout/input_data2.dta", clear
+
+keep if nace2 == `s'
+ 
+xtset unique_id time
+local varlist go va bill m k k_pim emp age
+foreach var of local varlist {
+gen log_`var' = log(`var')
+
+}
+gen elast_var = 0
+gen elast_cap = 0
+qui prodest log_go, free(log_m) proxy(log_m) state(log_k_pim) met (lp) acf reps(3) trans id(unique_id) t(time)
+replace elast_var = _b[log_bill]
+replace elast_cap = _b[log_k_pim]
+
+gen l_share = bill/go
+gen markup = elast_var/l_share
+keep id time nace3 nace2 Comautomoma age go gdp elast_cap elast_var l_share markup
+save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+}
+
+
+
+
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups2"
+
+ssc install fs
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+
+save "mkp_est_all2.dta", replace
+
+**all2 es eliminando obs
+
+* Winsorizing
+drop if markup==.
+local lower_limit = r(p1)
+local upper_limit = r(p99)
+
+replace markup = `lower_limit' if markup < `lower_limit'
+replace markup = `upper_limit' if markup > `upper_limit'
+
+
+*sectores 50, 12, 75, 77
+
+
+drop if nace2 == 75 | nace2 == 77 | nace2 == 50 | nace2 == 12
+
+
+histogram markup, bin(20) normal
+kdensity markup, normal
+ssc install plfit
+plfit markup
+tail index markup
+
+
+local variable = markup
+local tiempo = time
+
+foreach year in levels(`' + `variable) {
+  local subset = "`variable' == `year'"
+  if `subset' {
+    kdensity `variable' if `subset',  kernel(epanechnikov) options(range(min `variable' max `variable'))
+
+    graph twoway kdensity klines(lcolor(blue) lwidth(1)) label(`year') ytitle("Densidad de probabilidad") xtitle(`variable')
+
+
+  }
+}
+
+// (Opcional) Crea un gráfico combinado para todos los años
+graph twoway kdensity
+
+
+
+
+
+**Sin eliminar 
+global Pthout "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata"
+global PthEst "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata/Markups"
+use "$Pthout/input_data_correct.dta", clear
+
+gen indcode = nace2
+egen unique_id = group(id)
+xtset unique_id time
+drop if nace2 == 5
+
+g cogssale = m/go
+g totexp = m+bill
+g totexpsale = totexp/go
+
+* winsorize ratios
+ssc install winsor2
+winsor2 cogssale, replace cuts(1 99) 
+winsor2 totexpsale, replace cuts(1 99) 
+
+
+save input_data_correct_wins, replace
+
+levelsof indcode, local(levels)
+foreach s of local levels {
+use "$Pthout/input_data_o2.dta", clear
+
+keep if nace2 == `s'
+ 
+xtset unique_id time
+local varlist go va bill m k k_pim emp age
+foreach var of local varlist {
+gen log_`var' = log(`var')
+
+}
+gen elast_var = 0
+gen elast_cap = 0
+qui prodest log_go, free(log_bill) proxy(log_m) state(log_k_pim) met (lp) acf trans t(time)
+replace elast_var = _b[log_bill]
+replace elast_cap = _b[log_k_pim]
+
+gen l_share = bill/go
+gen markup = elast_var/l_share
+keep id time nace3 nace2 Comautomoma age go gdp elast_cap elast_var l_share markup
+save "$Pthout/Markups/mkp_est_s`s'.dta", replace
+}
+
+
+
+
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups"
+
+ssc install fs
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+
+save "mkp_est_all.dta", replace
+
+
+
+
+* Winsorizing
+drop if markup==.
+local lower_limit = r(p1)
+local upper_limit = r(p99)
+
+replace markup = `lower_limit' if markup < `lower_limit'
+replace markup = `upper_limit' if markup > `upper_limit'
+
+
+*sectores 50, 12, 75, 77
+
+
+drop if nace2 == 75 | nace2 == 77 | nace2 == 50 | nace2 == 12
+
+*TRIMMING, if needed
+preserve
+keep if s_g> s_g_p_1 & s_g< s_g_p_99
+replace trim = 1
+drop s_g_p* macro trim indfmt
+save data_main_upd_trim_1.dta, replace
+restore
+
+* switch on for higher trim
+forvalues t=2/5 {
+preserve
+keep if s_g> s_g_p_2 & s_g< s_g_p_98
+replace trim = `t'
+save data_main_upd_trim_`t'.dta, replace
+drop s_g_p* macro trim 
+restore
+} **\\
+
+
+******************************************************
+************ AGGREGATE FOR RESULTS   *****************
+******************************************************
+
+/*
+foreach X in muadj_cd muadj_cd_pt muadj_cd_tot li mu_li mu_cfg1_dam mu_cfg2_dam { 
+
+*** AGGREGATE ***
+
+egen a_m_`X' = mean(`X'),by(year)
+egen a_wtm_`X' = wtmean(`X'),weight(sale) by(year)
+egen a_med_`X' = median(`X'),by(year)
+egen a_sd_`X' = sd(`X'),by(year)
+egen a_iqr_`X' = iqr(`X'),by(year)
+
+egen a1_m_`X' = mean(`X'),by(ind_all year)
+egen a1_wtm_`X' = wtmean(`X'),weight(sale) by(ind_all year)
+egen a1_med_`X' = median(`X'),by(ind_all year)
+egen a1_sd_`X' = sd(`X'),by(ind_all year)
+egen a1_iqr_`X' = iqr(`X'),by(ind_all year)
+
+egen a2_m_`X' = mean(`X'),by(naics2 year) 
+egen a2_wtm_`X' = wtmean(`X'),weight(sale)  by(naics2 year) 
+egen a2_med_`X' = median(`X'),by(naics2 year)
+egen a2_sd_`X' = sd(`X'),by(naics2 year)
+egen a2_iqr_`X' = iqr(`X'),by(naics2 year)
+
+* could also use following, but very slow for industry
+foreach i in 25 75 90 95 97 {
+	egen a_pct`i'_`X' = pctile(`X'), by(year) p(`i')
+	*replace apct_`X' = `i' if `X' ~=. & `X' <= a_pct`i'_`X' & apct_`X' == . 	
+	
+	egen a1_pct`i'_`X' = pctile(`X'), by(ind_all year) p(`i')
+	*replace a1pct_`X' = `i' if `X' ~=. & `X' <= a1_pct`i'_`X' &  a1pct_`X' == . 
+	
+	egen a2_pct`i'_`X' = pctile(`X'), by(naics2 year) p(`i')
+	*replace a2pct_`X' = `i' if `X' ~=. & `X' <= a1_pct`i'_`X' &  a1pct_`X' == . 
+} 
+
+g a1_`X'_disp9550 = a1_pct95_`X' - a1_med_`X' 
+g a1_`X'_disp9750 = a1_pct97_`X' - a1_med_`X'
+}
+*/
+
+save 3.Final_data\firmOut_MarkUps, replace
+
+
+**BASURA
+gen log_go = log(go)
+gen log_m = log(m)
+gen log_l = log(bill)
+gen log_k = log(k_pim)
+
+
+gen elast_var = 0
+gen elast_cap = 0
+
+foreach i of num 2019/2020{
+foreach j of num 10{
+xtset unique_id time
+capture prodest log_go if nace2==`j' & time < `i'+2 & time > `i'-2, free(log_l) proxy(log_m) state(log_k) met(lp)  
+replace elast_var = _b[log_l] if time == `i' & nace2 == `j' 
+replace elast_cap = _b[log_k] if time == `i' & nace2 == `j' 
+}
+}
+
+
+/*
+gen v_share = sale/cogs
+gen markup = elast_var*v_share
+*/
