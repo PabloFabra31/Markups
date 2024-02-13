@@ -1,0 +1,247 @@
+library(tidyverse)
+library(lubridate)
+library(zoo)
+# load("C:/Users/User/Downloads/raw_data_sabi.RData")
+# load("C:/Users/User/Downloads/prepared_data.RData")
+# load("C:/Users/User/Downloads//macro_data.RData")
+
+# ---------------------------------------------------------------------------------------- #
+# Get characteristics and financial variables
+# ---------------------------------------------------------------------------------------- #
+vars_firm = data.all %>% select(1:17,343:346,497) %>% colnames() %>% data.frame() %>% 
+  purrr::set_names("variable") %>% pull()
+
+vars_financial = data.all %>% select(1:17,343:346,497,everything()) %>%
+  select(22:496) %>% colnames() %>% data.frame() %>% purrr::set_names("variable") %>% 
+  mutate(variable = stringr::str_extract(variable,pattern = ".*AÃ±o")) %>% distinct(variable) %>% 
+  na.omit() %>% mutate(variable = gsub("\\AÃ±o|\\EURAÃ±o","",variable)) %>% pull()
+
+# ---------------------------------------------------------------------------------------- #
+# Construct time variable and remove duplicates
+# ---------------------------------------------------------------------------------------- #
+
+# Remove duplicated BvD ID (keep most updated "Last Year")
+duplicates.id = data.all %>% group_by(NÃºmero.BvD) %>% mutate(n = n()) %>% ungroup() %>% filter(n>1) %>%
+  mutate(date = as.Date(parse_date_time(Fecha.de.CierreÃlt..aÃ±o.disp., orders = c('dmy', 'ymd')))) %>% 
+  arrange(NÃºmero.BvD,desc(date)) %>% distinct(NÃºmero.BvD,.keep_all = T) %>% select(-c(n,date)) %>% 
+  select(all_of(vars_firm),everything()) %>% 
+  purrr::set_names(vars_firm, lapply(vars_financial, function(i) paste(i,0:24,sep="_")) %>% unlist())
+
+# Remove firms with no NACE code, keep uncons. acc. and add duplicates
+data.cleaned.a = data.all %>% select(all_of(vars_firm),everything()) %>% 
+  purrr::set_names(vars_firm, lapply(vars_financial, function(i) paste(i,0:24,sep="_")) %>% unlist()) %>% 
+  group_by(NÃºmero.BvD) %>% mutate(n = n()) %>% ungroup() %>% filter(n == 1) %>% select(-n) %>% 
+  bind_rows(duplicates.id) %>% mutate(CÃ³digo.primario.NACE.Rev..2 = as.numeric(CÃ³digo.primario.NACE.Rev..2)) %>%
+  filter(! is.na(CÃ³digo.primario.NACE.Rev..2), CÃ³digo.consolidaciÃ³n %in% c("U1","U2")) %>% 
+  select(-c(NÃºmero,CÃ³digo.consolidaciÃ³n,Indicator.deIndependencia.BvD,Estado,
+          Provincia,No.of.companies.in.corporate.group,NÃºmero.de.participadas,
+          CÃ³digo.primario.US.SIC,Cotiza..no.cotiza..cotizÃ³,NÃºmero.BvD...Cuenta,
+          CÃ³digo.postal,Coordenada...X,Coordenada...Y)) #These variables are not needed
+
+# From wide to long
+rotate = function(nace_code){
+  data.cleaned.a %>% filter(CÃ³digo.primario.NACE.Rev..2 %in% nace_code) %>% mutate_all(as.character) %>%
+    pivot_longer(cols=10:484, names_to = c("variable","rel.time"), names_sep = "_") %>% spread(variable,value)
+}
+
+agriculture = rotate(100:399)
+mining = rotate(500:999)
+manufacturing = rotate(1000:3399)
+energy = rotate(3500:3599)
+water = rotate(3600:3999)
+construction1 = rotate(4100:4199)
+construction2 = rotate(4200:4299)
+construction3 = rotate(4300:4399)
+wholesale1 = rotate(4500:4599)
+wholesale2 = rotate(4600:4699)
+wholesale3 = rotate(4700:4799)
+trasportation = rotate(4900:5399)
+accomodation = rotate(5500:5699)
+information = rotate(5800:6399)
+finance = rotate(6400:6699)
+real.state = rotate(6800:6899)
+professional = rotate(6900:7599)
+admin = rotate(7700:8299)
+public.admin = rotate(8400:8499)
+education = rotate(8500:8599)
+health = rotate(8600:8899)
+arts = rotate(9000:9399)
+other.services = rotate(9400:9699)
+households = rotate(9700:9899)
+extra = rotate(9900:9999)
+
+# Data in long format and construct the time and age variables
+data.long = list(agriculture,mining,manufacturing,energy,water,construction1,
+                 construction2,construction3,wholesale1,wholesale2,wholesale3,
+                 trasportation,accomodation,information,finance,real.state,
+                 professional,admin,public.admin,education,health,arts,other.services,
+                 households,extra) %>% plyr::ldply(data.frame) %>% 
+  mutate_at(vars(8,10,11:15,17:29), ~ as.numeric(gsub("[^[:digit:]]", "", .))) %>%
+  mutate(date = as.Date(parse_date_time(Fecha.de.Cierre, orders = c('dmy', 'ymd'))),
+         date1 = as.Date(as.numeric(Fecha.de.Cierre), origin="1899-12-30"),
+         date2 = if_else(is.na(date),date1,date),
+         day = day(date2), month = month(date2), time = year(date2),
+         date = as.Date(parse_date_time(Fecha.constituciÃ³n, orders = c('dmy', 'ymd'))),
+         date1 = as.Date(as.numeric(Fecha.constituciÃ³n), origin="1899-12-30"),
+         date2 = if_else(is.na(date),date1,date), AÃ±o.constituciÃ³n = year(date2),
+         age = time-AÃ±o.constituciÃ³n+1) 
+# save.image("/Users/omarblancoarroyo/OneDrive/prepared_data.RData")
+
+# Remove BvD ID-time duplicates (keep most recent "month")
+duplicates.id.year = data.long %>% filter(!is.na(time)) %>%
+  group_by(NÃºmero.BvD,time) %>% mutate(n = seq(n())) %>% ungroup() %>% filter(n == 1) %>%
+  select(-c(Fecha.constituciÃ³n,rel.time,date,date1,date2,day,month,AÃ±o.constituciÃ³n,n,Fecha.de.Cierre))
+
+# Remove jumps
+n.firms = duplicates.id.year %>% distinct(NÃºmero.BvD) %>% pull() %>% length()
+span = 1989:2021 # All years available
+vars_firm = duplicates.id.year %>% select(Nombre,NÃºmero.BvD,Comunidad.autÃ³noma,GUO...Nombre,
+                                          GUO...NÃºmero.de.identificaciÃ³n.BvD,GUO...CÃ³digo.ISO.PaÃ­s,
+                                          CÃ³digo.primario.NACE.Rev..2,Forma.jurÃ­dica.detallada) %>%
+  distinct(NÃºmero.BvD,.keep_all=T)
+
+no.jumps = matrix(data = NA, nrow = n.firms, ncol = length(span)) %>% data.frame() %>%
+  purrr::set_names(span) %>% bind_cols(vars_firm) %>% 
+  pivot_longer(!c(Nombre,NÃºmero.BvD,Comunidad.autÃ³noma,GUO...Nombre,
+                  GUO...NÃºmero.de.identificaciÃ³n.BvD,GUO...CÃ³digo.ISO.PaÃ­s,
+                  CÃ³digo.primario.NACE.Rev..2,Forma.jurÃ­dica.detallada)) %>%
+  select(-value) %>% rename(time = name) %>% mutate(time = as.numeric(time)) %>% 
+  left_join(duplicates.id.year %>% select(2,9:28), by=c("NÃºmero.BvD","time"))
+
+# Remove outliers
+thr = .01 #percentile
+basic.cleaning = no.jumps %>% 
+  mutate(fixed.assets = ifelse(is.na(Inmovilizado.material) & is.na(Inmovilizado.inmaterial), NA,
+                               rowSums(cbind(Inmovilizado.material,Inmovilizado.inmaterial), na.rm = T)),
+         r1 = fixed.assets/Gastos.de.personal,r2 = NÃºmero.empleados/Importe.neto.Cifra.de.Ventas,
+         r3 = Importe.neto.Cifra.de.Ventas/Total.Activo,r4 = NÃºmero.empleados/Total.Activo,
+         r5 = Materiales/Importe.neto.Cifra.de.Ventas) %>% group_by(time) %>% 
+  mutate_at(vars(10:27), ~ifelse((r1 < quantile(r1, thr, na.rm=T) | r1 > quantile(r1, 1-thr, na.rm=T)) |
+                                              (r2 < quantile(r2, thr, na.rm=T) | r2 > quantile(r2, 1-thr, na.rm=T)) |
+                                              (r3 < quantile(r3, thr, na.rm=T) | r3 > quantile(r3, 1-thr, na.rm=T)) |
+                                              (r4 < quantile(r4, thr, na.rm=T) | r4 > quantile(r4, 1-thr, na.rm=T)) |
+                                              (r5 < quantile(r5, thr, na.rm=T) | r5 > quantile(r5, 1-thr, na.rm=T)),NA,.)) %>% 
+  ungroup() %>% select(-c(fixed.assets,r1,r2,r3,r4,r5))
+
+# ---------------------------------------------------------------------------------------- #
+# Basic cleaning
+# ---------------------------------------------------------------------------------------- #
+
+# Negative values and accounting identity
+negative.values =  basic.cleaning %>% 
+  filter((Total.Activo < 0 | Inmovilizado.material < 0 | NÃºmero.empleados < 0 | Importe.neto.Cifra.de.Ventas < 0 |
+           Gastos.de.personal < 0 | Materiales < 0) | (Total.Activo != Total.pasivo.y.capital.propio)) %>%
+  distinct(NÃºmero.BvD) %>% pull()
+
+# All variables missing
+all.missing = basic.cleaning %>% 
+  select(NÃºmero.BvD,Ingresos.de.explotaciÃ³n,Inmovilizado.material,Gastos.de.personal,Materiales,NÃºmero.empleados) %>% 
+  group_by(NÃºmero.BvD) %>% filter(all(is.na(Ingresos.de.explotaciÃ³n), is.na(Inmovilizado.material),
+                                      is.na(Gastos.de.personal), is.na(Materiales)) ) %>% 
+  summarize(n = n()) %>% ungroup() %>% pull(NÃºmero.BvD) 
+
+# At least two consecutive years
+no.growth.go = basic.cleaning %>% group_by(NÃºmero.BvD) %>% 
+  mutate(g.go = Ingresos.de.explotaciÃ³n/lag(Ingresos.de.explotaciÃ³n)-1,
+         n = n(), nas = sum(is.na(g.go))) %>% ungroup() %>% filter(n == nas) %>%
+  distinct(NÃºmero.BvD) %>% pull()
+
+# Negative age
+negative.age = basic.cleaning %>% filter(age < 0) %>% distinct(NÃºmero.BvD) %>% pull()
+
+# Remove firms
+rm.firms.a = data.frame(NÃºmero.BvD = c(negative.values,all.missing,no.growth.go,negative.age)) %>% 
+  distinct(NÃºmero.BvD) %>% pull()
+
+data.cleaned = basic.cleaning %>% filter(! NÃºmero.BvD %in% rm.firms.a) %>%
+  mutate(nace2 = as.numeric(substr(str_pad(CÃ³digo.primario.NACE.Rev..2, 4, pad ="0"), 1, 2)),
+         nace3 = as.numeric(substr(str_pad(CÃ³digo.primario.NACE.Rev..2, 4, pad ="0"), 1, 3)))
+
+# ---------------------------------------------------------------------------------------- #
+# Sample selection
+# ---------------------------------------------------------------------------------------- #
+
+# State-owned firms
+govt.firms = data.cleaned %>%
+  filter(grepl(paste(c("GOVT","GOVERNMENT","COMUNIDAD","MANCOMUNIDAD",
+                       "AYUNTAMIENTO","AREA METROPOLITANA",
+                       "GENERALITAT","GOBIERNO","JUNTA DE",
+                       "XUNTA DE"),collapse="|"),GUO...Nombre)) %>%
+  distinct(NÃºmero.BvD) %>% pull()
+
+# Remove sectors 
+# farm, financial and non-business sector (1-3 -> A, 64-66 -> K, 84-99 -> O,P,Q,R,S,T,U)
+# mining, petroleum and utilities (6-9 -> B, 19, 35 -> D, 36-39 -> E)
+digit2.nace = c(1:3,6:9,19,35,36:39,64:66,84:99) 
+digit4.nace = c(4612,4671,4950) # Petroleum related
+nace.codes = data.cleaned %>% filter(CÃ³digo.primario.NACE.Rev..2 %in% digit4.nace | nace2 %in% digit2.nace) %>% 
+  distinct(NÃºmero.BvD) %>% pull()
+
+# Remove firms owned by oil, energy and financial companies
+guo.firms = data.cleaned %>% distinct(Nombre,NÃºmero.BvD,GUO...Nombre,
+                                      GUO...NÃºmero.de.identificaciÃ³n.BvD,CÃ³digo.primario.NACE.Rev..2) %>% 
+  filter(!(nchar(GUO...NÃºmero.de.identificaciÃ³n.BvD) == 1 | NÃºmero.BvD == GUO...NÃºmero.de.identificaciÃ³n.BvD)) %>% 
+  purrr::set_names("name.af","id.af","name.parent","NÃºmero.BvD","nace.af") %>% 
+  left_join(data.cleaned %>% distinct(NÃºmero.BvD,CÃ³digo.primario.NACE.Rev..2), by="NÃºmero.BvD") %>% 
+  rename(nace.parent = CÃ³digo.primario.NACE.Rev..2) %>% na.omit() %>% 
+  filter(nace.parent %in% c(4612,4671,4950,3511:3523,6400:6699)) %>% pull(id.af)
+
+# Additional firms 
+guos = c("BANCO SANTANDER SA","BANCO BILBAO VIZCAYA ARGENTARIA SOCIEDAD ANONIMA","BANCO DE SABADELL SA",
+         "UNICAJA BANCO SA.","CAIXABANK SA","REPSOL SA.") # Banks are not included in SABI and REPSOL has NACE code 7010
+add.firms = data.cleaned %>% filter(GUO...Nombre %in% guos | 
+                                    NÃºmero.BvD %in% c("ESA28718435","ESA28033207","ESA28800894")) %>% #RTVE and REPSOL's affiliates
+  distinct(NÃºmero.BvD) %>% pull()
+
+# Restrict to Corporations, Limited Liability Companies and cooperatives
+legal.forms.list = data.cleaned %>% select(NÃºmero.BvD,Forma.jurÃ­dica.detallada) %>% 
+  mutate(form = gsub('[[:digit:]]+','',NÃºmero.BvD)) %>% filter(form %in% c("ESA","ESB","ESF")) %>% 
+  distinct(Forma.jurÃ­dica.detallada) %>% na.omit() %>% arrange(Forma.jurÃ­dica.detallada) %>% 
+  mutate(id = seq(n())) %>% filter(id %in% c(5,12:20,23:27,29:31,39,44:45)) %>% pull(Forma.jurÃ­dica.detallada)
+
+legal.form = data.cleaned %>% filter(! Forma.jurÃ­dica.detallada %in% legal.forms.list) %>% 
+  distinct(NÃºmero.BvD) %>% pull()
+
+# Micro firms
+micro.firms = data.cleaned %>% group_by(NÃºmero.BvD) %>% mutate(emp = round(mean(NÃºmero.empleados,na.rm=T))) %>% 
+  ungroup() %>% distinct(NÃºmero.BvD,emp) %>% filter(emp < 10) %>% pull(NÃºmero.BvD)
+
+# Remove firms
+rm.firms.b = data.frame(NÃºmero.BvD = c(govt.firms,nace.codes,add.firms,guo.firms,legal.form,micro.firms)) %>% 
+  distinct(NÃºmero.BvD) %>% pull()
+
+data.selected = data.cleaned %>% filter(time %in% 1996:2020 & ! (NÃºmero.BvD %in% rm.firms.b)) %>% 
+  select(NÃºmero.BvD,Nombre,time,nace2,nace3,CÃ³digo.primario.NACE.Rev..2,age,Comunidad.autÃ³noma,
+         Ingresos.de.explotaciÃ³n,NÃºmero.empleados,Inmovilizado.material,Inmovilizado.inmaterial,
+         Gastos.de.personal,Materiales,Dotaciones.para.amortiz..de.inmovil.)
+
+# ---------------------------------------------------------------------------------------- #
+# Construct variables
+# ---------------------------------------------------------------------------------------- #
+load("C:/Users/User/Downloads/data_tfg.RData")
+install.packages(c("tidyverse", "vctrs", "lubridate", "zoo"))
+install.packages("languageserver")
+
+data.vars = data.selected %>% 
+  mutate(k = ifelse(is.na(Inmovilizado.material) & is.na(Inmovilizado.inmaterial), NA,
+                    rowSums(cbind(Inmovilizado.material,Inmovilizado.inmaterial), na.rm = T)), va = Ingresos.de.explotación-Materiales) %>%
+  group_by(Número.BvD) %>% mutate(i = k-lag(k)+Dotaciones.para.amortiz..de.inmovil., delta = Dotaciones.para.amortiz..de.inmovil./(Dotaciones.para.amortiz..de.inmovil.+lag(k))) %>% ungroup() %>%
+  left_join(sectors.def, by = c("nace2")) %>% left_join(deflators,by=c("nace2","time")) %>% left_join(macro, by ="time") %>%
+  mutate(go.const = Ingresos.de.explotación/va.def, va.const = va/va.def, bill.const = Gastos.de.personal/cpi, m.const = Materiales/va.def,
+         k.const = k/k.def, i.const = i/k.def) %>% group_by(Número.BvD) %>%
+  mutate(k.pim = (1-delta)*lag(k.const)+i.const, k.pim = ifelse(row_number()==1, k.const, k.pim)) %>% ungroup() %>%
+  select(Número.BvD,Nombre,time,nace3,nace2,age,go.const,va.const,bill.const,m.const,k.const,k.pim,Número.empleados,gdp,Comunidad.autónoma) %>%
+  purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautonoma")
+
+
+data.vars <- data.vars %>%purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautomoma")
+#no hay sector en deflators
+hay_valores_no_na <- any(!is.na(data.vars$sector))
+
+# Imprimir el resultado
+print(hay_valores_no_na)
+# ---------------------------------------------------------------------------------------- #
+# Export data
+install.packages("haven")
+library(haven)
+write_dta(data.vars, "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/input_data_correct.dta")
