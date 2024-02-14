@@ -381,14 +381,12 @@ data.vars = data.selected %>%
   purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautonoma")
 
 
-data.vars <- data.vars %>%purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautomoma")
-#no hay sector en deflators
-hay_valores_no_na <- any(!is.na(data.vars$sector))
+data.vars <- data.vars %>%purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautonoma")
 
-# Imprimir el resultado
-print(hay_valores_no_na)
+
 # ---------------------------------------------------------------------------------------- #
 # Export data
+# ---------------------------------------------------------------------------------------- #
 install.packages("haven")
 library(haven)
 write_dta(data.vars, "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/input_data_correct.dta")
