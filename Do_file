@@ -29,6 +29,8 @@ gen log_`var' = log(`var')
 }
 save "$Pthout/input_data_correct_wins.dta", replace
 use "$Pthout/input_data_correct_wins.dta", clear
+
+levelsof indcode, local(levels)
 foreach s of local levels {
 use "$Pthout/input_data_correct_wins.dta", clear
 
