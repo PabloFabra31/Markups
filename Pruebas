@@ -20,7 +20,7 @@ replace theta_op = _b[v] if year==`t' & nrind==`s'
 }
 
 
-
+#DLE
 gen log_k2 = log_k_pim^2
 gen log_i2 = log_inv^2
 gen log_k3 = log_k_pim^3
@@ -35,4 +35,50 @@ forvalues t = 1996/2020 {
         reg log_go log_m log_l log_inv log_i2 log_i3 log_k_pim log_k2 log_k3 log_ki market_share if time == `t' & nrind == `s'
         replace theta_op = _b[v] if time == `t' & nrind == `s'
     }
+}
+
+
+
+#DLE in Granularity paper code
+g elast_m = 0
+g elast_l = 0
+g elast_k = 0
+g eps_cd = 0
+save "$Pthout/Markups2/data.dta", replace
+levelsof indcode, local(levels)
+foreach s of local levels {
+use "$Pthout/Markups2/data.dta", clear
+
+keep if nace2 == `s'
+ 
+xtset unique_id time
+qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+qui replace eps_cd = tempeps_cd if indcode  == `s'
+		qui drop tempeps_cd
+		qui replace elast_m = _b[log_m] if indcode  == `s' & eps_cd ~= . 	
+replace elast_l = _b[log_bill]
+replace elast_k= _b[log_k_pim]
+g markup = elast_m*(1/exp(eps_cd))*(go/m) if eps_cd ~= .  
+save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+}
+
+
+
+
+
+foreach s of local levels {
+    display `s' 
+
+    use "$Pthout/Markups2/data.dta", clear
+
+    keep if nace2 == "`s'"
+xtset unique_id time
+qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+qui replace eps_cd = tempeps_cd if indcode  == `s'
+		qui drop tempeps_cd
+		qui replace elast_m = _b[log_m] if indcode  == `s' & eps_cd ~= . 	
+replace elast_l = _b[log_bill]
+replace elast_k= _b[log_k_pim]
+g markup = elast_m*(1/exp(eps_cd))*(go/m) if eps_cd ~= .  
+save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
 }
