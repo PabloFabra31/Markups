@@ -32,7 +32,7 @@ levelsof indcode, local(levels)
 
 forvalues t = 1996/2020 {
     foreach s of local levels {
-        reg log_go log_m log_i log_i2 log_i3 log_k_pim log_k2 log_k3 log_ki share_firm share_ind_4 if time == `t' & nrind == `s'
+        reg log_go log_m log_l log_i log_i2 log_i3 log_k_pim log_k2 log_k3 log_ki share_firm share_ind_4 if time == `t' & nrind == `s'
         replace theta_op = _b[v] if time == `t' & nrind == `s'
     }
 }
