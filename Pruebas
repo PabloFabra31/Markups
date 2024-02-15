@@ -54,8 +54,8 @@ keep if nace2 == `s'
 xtset unique_id time
 qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
 qui replace eps_cd = tempeps_cd if indcode  == `s'
-		qui drop tempeps_cd
-		qui replace elast_m = _b[log_m] if indcode  == `s' & eps_cd ~= . 	
+qui drop tempeps_cd
+qui replace elast_m = _b[log_m] if indcode  == `s' & eps_cd ~= . 	
 replace elast_l = _b[log_bill]
 replace elast_k= _b[log_k_pim]
 g markup = elast_m*(1/exp(eps_cd))*(go/m) if eps_cd ~= .  
@@ -82,3 +82,54 @@ replace elast_k= _b[log_k_pim]
 g markup = elast_m*(1/exp(eps_cd))*(go/m) if eps_cd ~= .  
 save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
 }
+
+
+
+levelsof indcode, local(levels)
+
+foreach s of local levels {
+   qui count if nace2 == `s'
+   if r(N) > 0 {
+      use "$Pthout/Markups2/data.dta", clear
+      keep if nace2 == `s'
+
+      xtset unique_id time
+
+      capture qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd)
+      if _rc == 0 {
+         qui replace eps_cd = tempeps_cd if indcode  == `s'
+         qui drop tempeps_cd
+         qui replace elast_m = _b[log_m] if indcode  == `s' & eps_cd ~= . 	
+         replace elast_l = _b[log_bill]
+         replace elast_k = _b[log_k_pim]
+         g markup = elast_m*(1/exp(eps_cd))*(go/m) if eps_cd ~= .  
+
+         save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+      }
+   }
+}
+
+
+
+local all_levels
+
+foreach s in `levels' {
+    use "$Pthout/Markups2/data.dta", clear
+
+    keep if nace2 == `s'
+    
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= .  
+    
+    save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+
+    local all_levels "`all_levels' `s'" 
+}
+
+local levels "`all_levels'"
