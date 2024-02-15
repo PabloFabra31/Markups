@@ -377,8 +377,8 @@ data.vars = data.selected %>%
   mutate(go.const = Ingresos.de.explotación/va.def, va.const = va/va.def, bill.const = Gastos.de.personal/cpi, m.const = Materiales/va.def,
          k.const = k/k.def, i.const = i/k.def) %>% group_by(Número.BvD) %>%
   mutate(k.pim = (1-delta)*lag(k.const)+i.const, k.pim = ifelse(row_number()==1, k.const, k.pim)) %>% ungroup() %>%
-  select(Número.BvD,Nombre,time,nace3,nace2,age,go.const,va.const,bill.const,m.const,k.const,k.pim,Número.empleados,gdp,Comunidad.autónoma) %>%
-  purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautonoma")
+  select(Número.BvD,Nombre,time,nace3,nace2,age,go.const,va.const,bill.const,m.const,k.const,k.pim,Número.empleados,gdp, i.const,Comunidad.autónoma) %>%
+  purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp", "i","Comautonoma")
 
 
 data.vars <- data.vars %>%purrr::set_names("id","name","time","nace3","nace2","age","go","va","bill","m","k","k_pim","emp","gdp","Comautonoma")
