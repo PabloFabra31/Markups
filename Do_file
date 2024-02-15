@@ -19,8 +19,9 @@ save "$Pthout/input_data2.dta", replace
 
 gen m_share = m/go
 gen indcode = nace2
-gen elast_var = 0
-gen elast_cap = 0
+gen elast_m = 0
+gen elast_l = 0
+gen elast_k
 egen unique_id = group(id)
 local varlist go va bill m k k_pim emp age
 foreach var of local varlist {
@@ -62,10 +63,10 @@ use "$Pthout/data.dta", clear
 keep if nace2 == `s'
  
 xtset unique_id time
-qui prodest log_go, free(log_m) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time)
-replace elast_var = _b[log_m]
-replace elast_cap = _b[log_k_pim]
-
+qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met (op) acf reps(3) trans id(unique_id) t(time)
+replace elast_m = _b[log_m]
+replace elast_l = _b[log_bill]
+replace elast_k= _b[log_k_pim]
 gen markup = elast_var/m_share
 keep id time nace3 nace2 age go gdp elast_cap elast_var m_share markup
 save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
