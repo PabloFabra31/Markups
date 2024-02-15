@@ -1,0 +1,38 @@
+* Fig A.1 Output elasticities:
+xtset id time, yearly
+gen lns = ln(sale_D)
+gen v = ln(cogs_D)
+gen lnk = ln(capital_D)
+gen Investment = capital_D-.9*L.capital_D
+gen lni = ln(Investment)
+gen lnk2 = lnk^2
+gen lni2 = lni^2
+gen lnk3 = lnk^3
+gen lni3 = lni^3
+gen lnki = lnk*lni
+gen theta_op 	= .
+egen nrind = group(ind2d)
+forvalues t=1972/2016 {
+forvalue  s = 1/23 {
+reg lns v lni lni2 lni3 lnk lnk2 lnk3 lnki share_firm if year==`t' & nrind==`s'
+replace theta_op = _b[v] if year==`t' & nrind==`s'
+}
+}
+
+
+
+gen log_k2 = log_k_pim^2
+gen log_i2 = log_i^2
+gen log_k3 = log_k_pim^3
+gen log_i3 = log_i^3
+gen log_ki = log_k_pim*log_i
+gen theta_op 	= .
+egen nrind = group(nace2)
+levelsof indcode, local(levels)
+
+forvalues t = 1996/2020 {
+    foreach s of local levels {
+        reg log_go log_m log_i log_i2 log_i3 log_k_pim log_k2 log_k3 log_ki share_firm share_ind_4 if time == `t' & nrind == `s'
+        replace theta_op = _b[v] if time == `t' & nrind == `s'
+    }
+}
