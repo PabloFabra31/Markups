@@ -207,6 +207,30 @@ di "`nace2_values'"
 
 
 
+**Sin eliminar 
+ssc install winsor2
+global Pthout "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata"
+global PthEst "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata/Markups"
+use "$Pthout/input_data_correct.dta", clear
+
+gen indcode = nace2
+egen unique_id = group(id)
+xtset unique_id time
+drop if nace2 == 5
+
+g cogssale = m/go
+g totexp = m+bill
+g totexpsale = totexp/go
+
+* winsorize ratios
+winsor2 cogssale, replace cuts(1 99) 
+winsor2 totexpsale, replace cuts(1 99) 
+
+
+
+
+
+
 use "$Pthout/Markups2/data.dta", clear
 levelsof nace2, local(nace2_values)
 foreach s in `nace2_values' {
