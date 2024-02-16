@@ -202,13 +202,18 @@ use "$Pthout/Markups2/data.dta", clear
 levelsof nace2, local(nace2_values)
 
 di "`nace2_values'"
-use "$Pthout/Markups2/data.dta", clear
 
+
+
+
+
+use "$Pthout/Markups2/data.dta", clear
+levelsof nace2, local(nace2_values)
 foreach s in `nace2_values' {
     use "$Pthout/Markups2/data.dta" if nace2 == `s', clear
 
     xtset unique_id time
-    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(10) trans id(unique_id) t(time) fsres(tempeps_cd) 
     qui replace eps_cd = tempeps_cd if indcode == `s'
     qui drop tempeps_cd
     qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
@@ -216,9 +221,19 @@ foreach s in `nace2_values' {
     replace elast_k = _b[log_k_pim]
     g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
 
-    save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
 }
 
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+ssc install fs
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data.dta", replace
 
 ssc install winsor2
 winsor2 markup, replace cuts(1 99) 
+summarize markup, detail
