@@ -196,7 +196,7 @@ local levels "`all_levels'"
 
 
 *****BUENOOOOOOO*******
-*No funciona la 81, comprobar.
+*No funciona la 82, comprobar.
 use "$Pthout/Markups2/data.dta", clear
 
 levelsof nace2, local(nace2_values)
