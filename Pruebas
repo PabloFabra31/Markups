@@ -272,3 +272,20 @@ save "data_markups10r.dta", replace
 ssc install winsor2
 winsor2 markup, replace cuts(1 99) 
 summarize markup, detail
+
+gen markdown = (elast_l/markup)*(go/bill)
+winsor2 markdown, replace cuts(1 99)
+
+#power law
+gsort - markup
+gen ranking = _n
+gen log_rank = log(ranking)
+gen log_markup = log(markup)
+scatter log_rank log_markup
+
+winsor2 markdown, replace cuts(1 99)
+gsort - markdown
+gen rankingd = _n
+gen log_rankd = log(rankingd)
+gen log_markdown = log(markdown)
+scatter log_rankd log_markdown
