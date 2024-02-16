@@ -218,3 +218,7 @@ foreach s in `nace2_values' {
 
     save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
 }
+
+
+ssc install winsor2
+winsor2 markup, replace cuts(1 99) 
