@@ -45,8 +45,8 @@ g elast_l = 0
 g elast_k = 0
 g eps_cd = 0
 save "$Pthout/Markups2/data.dta", replace
-levelsof indcode, local(levels)
-foreach s of local levels {
+levelsof indcode, global(levels)
+foreach s of global levels {
 use "$Pthout/Markups2/data.dta", clear
 
 keep if nace2 == `s'
@@ -110,6 +110,32 @@ foreach s of local levels {
 }
 
 
+levelsof indcode, local(levels)
+local all_levels
+
+foreach s in `levels' {
+    use "$Pthout/Markups2/data.dta", clear
+
+    keep if nace2 == `s'
+    
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(lp) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+qui replace elast_l = _b[log_bill] if indcode == `s'
+    replace elast_k = _b[log_k_pim] if indcode == `s'
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= .  
+    
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+
+    local all_levels "`all_levels' `s'" 
+}
+
+local levels "`all_levels'"
+
+
+*EL BUENO*
 
 local all_levels
 
@@ -132,4 +158,63 @@ foreach s in `levels' {
     local all_levels "`all_levels' `s'" 
 }
 
+local levels "`all_levels'" 
+
+
+
+
+
+
+
+
+
+
+global all_levels ""
+
+foreach s in `levels' {
+    use "$Pthout/Markups2/data.dta", clear
+
+    keep if nace2 == `s'
+    
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= .  
+    
+    save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+
+    global all_levels "$all_levels `s'" 
+}
+
 local levels "`all_levels'"
+
+
+
+
+*****BUENOOOOOOO*******
+*No funciona la 81, comprobar.
+use "$Pthout/Markups2/data.dta", clear
+
+levelsof nace2, local(nace2_values)
+
+di "`nace2_values'"
+use "$Pthout/Markups2/data.dta", clear
+
+foreach s in `nace2_values' {
+    use "$Pthout/Markups2/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(3) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups2/mkp_est_s`s'.dta", replace
+}
