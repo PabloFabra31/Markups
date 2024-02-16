@@ -209,6 +209,8 @@ di "`nace2_values'"
 
 **Sin eliminar 
 ssc install winsor2
+ssc install fs
+
 global Pthout "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata"
 global PthEst "C:/Users/User/OneDrive - Universitat Jaume I/Economía/Beca Colaboración/Stata/Markups"
 use "$Pthout/input_data_correct.dta", clear
@@ -217,6 +219,7 @@ gen indcode = nace2
 egen unique_id = group(id)
 xtset unique_id time
 drop if nace2 == 5
+save "$Pthout/input_data_correct.dta", replace
 
 g cogssale = m/go
 g totexp = m+bill
@@ -225,9 +228,19 @@ g totexpsale = totexp/go
 * winsorize ratios
 winsor2 cogssale, replace cuts(1 99) 
 winsor2 totexpsale, replace cuts(1 99) 
+gen elast_m = 0
+gen elast_l = 0
+gen elast_k = 0
+gen eps_cd = 0
+rename i inv
+local varlist go va bill m inv k k_pim emp age
+foreach var of local varlist {
+gen log_`var' = log(`var')
 
+}
 save "$Pthout/Markups3/data.dta", replace
 
+duplicates report unique_id time
 
 
 
@@ -250,13 +263,11 @@ foreach s in `nace2_values' {
 
 cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
 
-ssc install fs
-
 fs mkp_est_s*.dta
 
 append using `r(files)'
 
-save "data.dta", replace
+save "data_markups10r.dta", replace
 
 ssc install winsor2
 winsor2 markup, replace cuts(1 99) 
