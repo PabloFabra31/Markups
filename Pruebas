@@ -226,15 +226,15 @@ g totexpsale = totexp/go
 winsor2 cogssale, replace cuts(1 99) 
 winsor2 totexpsale, replace cuts(1 99) 
 
+save "$Pthout/Markups3/data.dta", replace
 
 
 
 
-
-use "$Pthout/Markups2/data.dta", clear
+use "$Pthout/Markups3/data.dta", clear
 levelsof nace2, local(nace2_values)
 foreach s in `nace2_values' {
-    use "$Pthout/Markups2/data.dta" if nace2 == `s', clear
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
 
     xtset unique_id time
     qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(10) trans id(unique_id) t(time) fsres(tempeps_cd) 
