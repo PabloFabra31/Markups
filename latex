@@ -1,0 +1,179 @@
+\documentclass[12pt]{article} % This sets the document class and font size
+\usepackage{amsmath} % For mathematical symbols and equations
+\usepackage{graphicx} % For including figures
+\usepackage{apacite} % For citations
+\bibliographystyle{apacite}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{times}
+\usepackage{ amssymb }
+\usepackage[T1]{fontenc}
+\usepackage{setspace}
+\usepackage[style=apa]{biblatex}
+\onehalfspacing
+\bibliography{referencias.bib}
+
+
+% Title and Author information
+\title{Distribution of markups}
+\author{Pablo Fabra Ibáñez}
+\date{\today} % Today's date
+
+\begin{document}
+
+\maketitle 
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction} 
+
+The evolution of markups plays a crucial role in determining macroeconomic outcomes. For instance, the allocation of national income between labor and capital is contingent on the aggregate markups in the economy. The existence of market power introduces inefficiencies, causing distortions in markets, leading to decreased production and, therefore, reduced demand for labor. Consequently, to understand macroeconomic outcomes, economists must be attentive to the distribution and the evolution of both markups and markdowns across sectors and over time. \\
+
+In the absence of available prices and marginal costs, we will use instead financial information from Orbis to calculate measures of market power. Understanding markups as the wedge between the elasticity of a firm’s output with respect to a variable input and its share in revenues \parencite{hall1988relation}, we will follow a “production approach” as popularised by \textcite{deloecker2012}. That is, forecasting the production function to calculate the different elasticities. Markdowns can be directly recovered from markups once we have the elasticity of labour and its share in revenues, as proposed by \textcite{yeh2022monopsony}. In section... (write about the distribution of the paper once it's finished)
+\section{Empirical framework}
+In this section we will cover the empirical framework used to recover the measures of market power in Spain. We will start by commenting on the data we have used. We will then comment on the production function approach that will enable us to get the individual markups from firm-level data using the \textcite{deloecker2012} approach. We will next present the derivation of \textcite{hall1988relation} linking markups to the firm production function. We will finally present the derivation of markdowns and its link to markups. 
+
+\subsection{Data}
+Our data source will be ORBIS, a cross-country longitudinal database provided by Moody's Bureau van Dijk that reports firm-level balance sheet information for both private and public firms. This data, however, needs from intensive treatment prior to use. For preparing the data, a similar cleaning procedure than \textcite{gal2013}, \textcite{gopinath2017capital} and \textcite{kalemli2015construct} will be followed. After dealing with reporting mistakes, variables included in the forecasting of the production function should be deflated. In order to do so and complete our database, we will recover industry price deflators and macro data from Eurostat, OECD, Banco de España and IVIE. After the cleaning, our sample cover a X\% of Spanish GDP.
+
+\subsection{Estimation methods}
+Formerly, academic researchers estimated markups using the demand method \parencite{bresnahan1989,berry1993automobile}. However, this approach requires detailed market transaction data and assumptions about firm competition, which can be limiting and potentially inaccurate. The production approach has received much attention in the literature proven the equivalence of results between the two methods \parencite{de2016estimating}, as it solves the limitations of the demand approach. This markup estimation approach is based on \textcite{hall1988relation}, who derives markups as the wedge between a variable input’s output elasticity and the share of that input in total revenue. \textcite{deloecker2012} established the keystone on the "production approach", that is, obtaining the elasticity from the estimation of the production function to calculate markups. \\
+
+The Control Function (CF) approach is the most used in production function estimation. \textcite{olley1992dynamics} were the first in proposing a two-step procedure in order to overcome endogeneity using investment as a proxy for productivity. This approach was further improved by \textcite{levinsohn2003estimating} and later by \textcite{ackerberg2015identification}, procedure that we will follow in this paper. The process is composed by an initial regression step to eliminate any distortions in the output caused by measurement errors and temporary productivity shocks and a second stage to determine the production function using instrumental variables, in our case, that will be investment. (or lagged variable inputs, read ACF) \\
+
+While it is true that in the production approach the firm's production function has to be defined, there is not much rigidity imposed since a translog function -a second order approximation to any differentiable production function- could be chosen. Besides, it is robust to assumptions about inputs beyond labour and materials and no additional assumptions on the market structure or consumer demand are required, neither information on prices or market transactions. It extracts market power measures directly from balance sheet data. Therefore, the only limitation is the assumption of perfect competition in the variable input market used for the calculation of the markup.
+\subsubsection{Production function estimation? (check whether the info below is correct)}
+We extract all the necessary variables for estimating the production function from ORBIS. These variables include gross output (total income), the wage bill (sum of wages and social security payments), capital (measured by fixed tangible assets on the balance sheet), and materials (purchases of physical intermediate goods and raw materials). Market share is computed as the firm's gross output divided by the total gross output of all firms in the 2-digit industry for a given year (do I need markshare?).
+\begin{equation}
+y_{iht} = \beta_v v_{iht} + \beta_k k_{iht} + \beta_v v_{iht}^2 + \beta_k k_{iht}^2 + \beta_{vk} k_{iht} v_{iht} + \omega_{iht}
+\end{equation}
+
+\begin{equation}
+\omega_{iht} = \rho \omega_{iht-1} + \xi_{iht}
+\end{equation}
+Following the \textcite{ackerberg2015identification} procedure, our method consists of two stages. In the first stage, we remove measurement errors from observed output regressing it on a third-order polynomial of the variable inputs, flexible inputs and a time-fixed effect. After the purged output is used as the dependent variable to build moments conditions of an IV-GMM estimation where the lagged variable will be used as an instrumental variable (or investment, check ACF). A numerical solver is employed to determine the values of \(\beta\)s and \(\rho\) that make these moments equal to zero.
+We will use the command prodest to do so \parencite{rovigatti2017production}.
+Note that as we are using a translog function, the elasticity of the variable inputs will be \(
+\frac{\partial y_{it}}{\partial v_{it}}
+^\text{translog} = \frac{
+    \left\{
+        \sum_{i=1}^{N} \sum_{t=1}^{T} (\hat{\beta}_v + 2\hat{\beta}_{vv}v_{it} + \hat{\beta}_{vk}v_{it})
+    \right\}
+}{
+    N \times T
+}
+\)
+
+
+
+Check it is correct and not a \^2 in the last term
+
+
+\subsubsection{Markup derivation}
+Following the derivation of \textcite{hall1988relation}, assuming there exists a variable input (\(V^j_{it}\)) used exclusively for the production of output that is chosen statically -given fixed inputs- in the cost minimisation process \footnote{Production function has to be twice continuously differentiable in that input and the limit of the partial derivative with respect to the variable input needs to be $\infty$ when the input tends to 0 and 0 when the input tends to $\infty$. Besides, for the demand curve is assumed to be strictly decreasing and continuously differentiable. This will also need to be assumed on labour to calculate markdowns.}, without  adjustment costs neither subject to monopsony forces, markups can be calculated by computing the gap between the output elasticity with respect to variable inputs and the share of those inputs in total revenue. This approach assumes cost minimization, the existence of both variable and fixed factor inputs and, in our case, a translog form for the production technology. Following the IO literature, we will consider materials satisfy the assumptions presented above. 
+In each period t, firm i minimises the production cost given the production function:
+\begin{equation}
+    Q(\Omega_{it},\textbf{V}_{it},K_{it}) = \Omega_{it} \cdot F_t(\textbf{V}_{it},K_{it}), \quad 
+\end{equation}
+where \textbf{V}\footnote{Note that from now on V will be represented as a scalar instead of a vector since in the implementation we will be using one variable input, in our case, or a bundle of variable inputs (\(V^j_{it}\)). Therefore, from now on, although formulae will be written in general terms, we will need in the implementation to choose one variable input. As we are calculating markdowns, we will need to select one flexible input other than L. Otherwise, markup would also account for labour market power.} represents the set of variable inputs, \textit{K} is capital stock  and \(\Omega\) the Hicks-neutral productivity term. Technology is assumed to be equal for the competitors of the same sector, although with a firm-specific productivity.
+We consider the Lagrangian objective function:
+\begin{equation}
+    \mathcal{L}(V_{it}, K_{it}, \Lambda_{it}) = P^{V}_{it}V_{it} + r_{it} K_{it} - \Lambda_{it} (Q(\cdot) - Q_{it})
+\end{equation}
+In this context, \(P^V\) represents the price of the variable input, \(r\) stands for the user cost of capital -both assumed to be equal to marginal revenue product-, \(Q(\cdot)\) denotes the technology function defined in equation (1), \(Q_{it}\) is a scalar, and \(\Lambda_{it}\) is the Lagrangian multiplier. The first order condition
+with respect to the variable input V would be:
+\begin{align}
+    \frac{\partial \mathcal{L}_{it}}{\partial V_{it}} &= P^{V}_{it} - \Lambda_{it}  \frac{\partial (Q(\cdot)}{\partial V_{it}} = 0
+\end{align}
+Multiplying by \(V_{it}\)/\(Q_{it}\) and isolating the resulting output elasticity of variable input we get:
+\begin{equation}
+\theta^V_{it}\equiv \frac{\partial (Q(\cdot)}{\partial V_{it}} \frac{V_{it}}{Q_{it}} = \frac{1}{\Lambda_{it}} \frac{P^V_{it} V_{it}} {Q_{it}}
+\end{equation}
+
+Since the markup is defined as the price over the marginal cost, \(\mu = \frac{P}{\Lambda}\), and the Lagrangian parameter \(\Lambda\) is a direct measure of the marginal cost, we can substitute \(\Lambda\) by \(\frac{P}{\mu}\) and rearrange:
+\begin{equation}
+\mu_{it} = \theta^V_{it}\frac{P_{it} Q_{it}}{P^V_{it} V_{it}} = \frac{\theta^V_{it}}{\alpha^V_{it}}\footnote{We will correct our estimates for the presence of measurement error in gross output, as stated in \cite{deloecker2012}}.
+\end{equation}
+Therefore, markup will be output elasticity of the selected variable input \(\theta^V_{it}\) multiplied by the revenue share of that variable input \(\frac{P_{it} Q_{it}}{P^V_{it} V_{it}}\). When markups are equal to 1, revenue share and the input's output elasticity will be equal.
+
+\subsubsection{Markdown derivation}
+Under the assumption of labour being chosen statically, without adjustment cost and used exclusively in the output production, and being the wage schedule for firm i finitely elastic and differentiable, we can calculate markdowns using a similar approach as the one followed in \cite{yeh2022monopsony}.
+Firms will minimise cost while producing the optimum quantity:
+\begin{equation}
+\min_{\ell_{it} \geq 0} w_{it}(\ell_{it}) \ell_{it} \quad \text{s.t.} \quad F(\ell_{it}, \textbf{X}^*_{-\ell,it}; \omega_{it}) \geq Q_{it}
+\end{equation}
+Being \(\textbf{X}^*_{-\ell,it}\) the vector of all inputs except for labour optimised. 
+
+\begin{equation}
+\nu_{it} = \frac{\theta^\ell_{ it}}{\alpha^\ell_{it}} \mu_{it}^{-1}
+\end{equation}
+
+The associated Lagrangian objective function will be:
+
+\begin{equation}
+        \mathcal{L}(\ell_{it}, X^*, \Lambda_{it}) = w_{it}(\ell_{it})\ell_{it} - \Lambda_{it} (Q(\cdot) - Q_{it})
+\end{equation}
+
+(Mirar si más preciso y menos coherente: \(\Lambda_{it}[F(\ell_{it}, X^* - \ell_{it}, \omega_{it}) - Q_{it}]\))\\
+In this context, \(w_{it}\) is the cost of the variable input, which is labour (\( \ell_{it}\)), and Q(·) denotes the technology function with all inputs except (\( \ell_{it}\)) being optimised. 
+
+The first order condition with respect to labour would be:
+\begin{align}
+    \frac{\partial \mathcal{L}_{it}}{\partial V_{it}} &= w'_{it}(\ell_{it})\ell_{it} + w_{it}(\ell_{it}) - \Lambda_{it}  \frac{\partial (Q(\cdot)}{\partial V_{it}} = 0
+\end{align}
+
+Therefore, rearranging and dividing by w, we get:
+
+\begin{equation}
+ \left[\frac{w'_{it}(\ell_{it}) \ell_{it}}{w_{it}(\ell_{it})} + 1\right] = \Lambda_{it} \cdot \frac{\frac{\partial F(\ell_{it}, \textbf{X}^*_{-\ell,it}; \omega_{it})}{\partial \ell_{it}}}{ w_{it}(\ell_{it}) }
+\end{equation}
+Finally, we transform our equality by adding the terms \(\ell_{it}, Q_{it} and P_{it}\) both in the numerator and denominator and thus getting the expression for the labour elasticity and the revenue shares of labour:
+
+\begin{equation}
+ \left[\frac{w'_{it}(\ell_{it}) \ell_{it}}{w_{it}(\ell_{it})} + 1\right] = \frac{\Lambda_{it}}{P_{it}} \cdot \frac{\partial F(\ell_{it}, \textbf{X}^*_{-\ell,it}; \omega_{it})}{\partial \ell_{it}} \frac{\ell_{it}}{Q_{it}} \cdot \frac{P_{it}Q_{it}}{w'_{it}(\ell_{it}) \ell_{it}} \equiv \mu^{-1}_{it} \cdot \frac{\theta_{\ell_{it}}}{\alpha_{\ell_{it}}}
+\end{equation}
+
+\begin{equation}
+ \left[\frac{w'_{it}(\ell_{it}) \ell_{it}}{w_{it}(\ell_{it})} + 1\right] = \frac{\Lambda_{it}}{P_{it}} \cdot \frac{\partial F(\ell_{it}, \mathbf{X}^*_{-\ell,it}; \omega_{it})}{\partial \ell_{it}} \frac{\ell_{it}}{Q_{it}} \cdot \frac{P_{it}Q_{it}}{w'_{it}(\ell_{it}) \ell_{it}}
+ \equiv \mu^{-1}_{it} \cdot \frac{\theta_{\ell_{it}}}{\alpha_{\ell_{it}}}
+\end{equation}
+
+
+\section{Limitations}
+In imperfectly competitive markets, where firms' decisions impact prices, using revenue as a proxy for output may not be a reliable approximation.
+Therefore, when firms compete in an imperfect market, to calculate the production function consistently, real output data is necessary\parencite{klette1996}. Contrary to the incapability of the estimated markups to be informative suggested by \textcite{bond2021some} since our results are calculated on deflated revenues rather than physical output, our approach is still valid to characterise the evolution of the distribution and the correlation between markups and firm-level characteristics despite the bias in output elasticities  by the average price-elasticity of demand (as long as firms have heterogeneous price-elasticities of demand) \parencite{de2022hitchhiker}. However, because of the mentioned bias, as we are using revenues, the average of the markups will not be informative about the real value. That is not a problem in this context since we are interested in variations and distributions.
+
+
+
+
+
+\begin{align*}
+\frac{\partial L}{\partial l} &= \frac{\partial}{\partial l} \left[ w_i(l) l + \lambda_i \left( Q_i - F(l, X^* - l, \omega_i) \right) \right] \\
+&= w_i'(l) l + w_i(l) - \lambda_i \frac{\partial F}{\partial l} \\
+\end{align*}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsubsection{Aggregation of market power measures}
+
+
+
+
+
+
+
+
+\end{document}
