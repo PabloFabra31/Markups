@@ -233,7 +233,9 @@ gen elast_l = 0
 gen elast_k = 0
 gen eps_cd = 0
 rename i inv
-local varlist go va bill m inv k k_pim emp age
+gen lag_m = l.m
+gen lag_l = l.bill
+local varlist go va bill m inv k k_pim emp age lag_m lag_l
 foreach var of local varlist {
 gen log_`var' = log(`var')
 
@@ -250,7 +252,7 @@ foreach s in `nace2_values' {
     use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
 
     xtset unique_id time
-    qui prodest log_go, free(log_m log_bill) proxy(log_i) state(log_k_pim) met(op) acf reps(10) trans id(unique_id) t(time) fsres(tempeps_cd) 
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(op) acf attrition reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
     qui replace eps_cd = tempeps_cd if indcode == `s'
     qui drop tempeps_cd
     qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
@@ -289,3 +291,14 @@ gen rankingd = _n
 gen log_rankd = log(rankingd)
 gen log_markdown = log(markdown)
 scatter log_rankd log_markdown
+
+
+
+summarize markup, detail
+drop if markup<r(p1) | markup>r(p99)
+
+
+
+
+
+bys nace2: markupest mkupACF_translog, method(dlw) output(log_go) inputvar(log_bill log_m) free(log_m) state(log_k_pim) proxy(log_lag_m log_lag_l) prodestopt("poly(3) acf trans")
