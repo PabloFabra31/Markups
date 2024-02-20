@@ -298,7 +298,241 @@ summarize markup, detail
 drop if markup<r(p1) | markup>r(p99)
 
 
+egen total_go = total(go), by(time nace2)
+gen market_share = go / total_go
 
 
+gen reciprocal_markup = 1 / markup
+
+gen weighted_value = market_share * reciprocal_markup
+
+egen total_weighted_value = total(weighted_value), by(time)
+
+egen total_market_share = total(market_share), by(time)
+
+gen weighted_harmonic_average = total_weighted_value / total_market_share
+
+drop reciprocal_markup weighted_value total_weighted_value total_market_share
+
+
+
+
+*AGGREGATES
+egen agtotal_go = total(go), by(time)
+gen ag_share = go / agtotal_go
+
+
+gen inv_markup = 1 / markup
+
+gen weighted_inv_markup = inv_markup * ag_share
+
+by time, sort: egen sum_ag_share = total(ag_share)
+by time, sort: egen sum_weighted_inv_markup = total(weighted_inv_markup)
+gen harmonic_mean = sum_ag_share / sum_weighted_inv_markup
 
 bys nace2: markupest mkupACF_translog, method(dlw) output(log_go) inputvar(log_bill log_m) free(log_m) state(log_k_pim) proxy(log_lag_m log_lag_l) prodestopt("poly(3) acf trans")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(op) acf attrition reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdatrilagmopacf.dta", replace
+
+
+
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(lp) acf attrition reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdatrilagmlpacf.dta", replace
+
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(op) acf reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdlagmopacf.dta", replace
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(lp) acf reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdlagmlpacf.dta", replace
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_lag_m) state(log_k_pim) met(op) reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdlagmop.dta", replace
+
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_inv) state(log_k_pim) met(op) reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdinvop.dta", replace
+
+
+use "$Pthout/Markups3/data.dta", clear
+levelsof nace2, local(nace2_values)
+foreach s in `nace2_values' {
+    use "$Pthout/Markups3/data.dta" if nace2 == `s', clear
+
+    xtset unique_id time
+    qui prodest log_go, free(log_m log_bill) proxy(log_inv) state(log_k_pim) met(op) acf reps(3) id(unique_id) t(time) fsres(tempeps_cd) 
+    qui replace eps_cd = tempeps_cd if indcode == `s'
+    qui drop tempeps_cd
+    qui replace elast_m = _b[log_m] if indcode == `s' & eps_cd ~= .    
+    replace elast_l = _b[log_bill]
+    replace elast_k = _b[log_k_pim]
+    g markup = elast_m * (1/exp(eps_cd)) * (go/m) if eps_cd ~= . 
+
+    save "$Pthout/Markups3/mkp_est_s`s'.dta", replace
+}
+
+cd "C:\Users\User\OneDrive - Universitat Jaume I\Economía\Beca Colaboración\Stata\Markups3"
+
+fs mkp_est_s*.dta
+
+append using `r(files)'
+
+save "data_markupscobdinvopacf.dta", replace
