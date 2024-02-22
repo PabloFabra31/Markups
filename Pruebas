@@ -536,3 +536,44 @@ fs mkp_est_s*.dta
 append using `r(files)'
 
 save "data_markupscobdinvopacf.dta", replace
+
+
+
+#22/02
+_pctile markup, p(0.5 99.5)
+local 005_percentile = r(r1)
+local 995_percentile = r(r2)
+levelsof time, local(unique_years)
+
+foreach year in `unique_years' {
+use "D:\TFG PABLO\finaldata.dta", clear
+if `year' == 1996 continue
+keep if time == `year'
+gsort - markup
+gen ranking_`year' = _n
+gen log_rank_`year' = log(ranking)
+ 
+gen log_markup_`year' = log(markup)
+regress log_rank_`year' log_markup_`year'
+scatter log_rank_`year' log_markup_`year' if markuptr==1
+graph export "D:\TFG PABLO\Gráficos\scatter_trimmed_`year'.png", replace
+}
+
+drop if markup ==.
+_pctile markup, p(1 99)
+local 1_percentile = r(r1)
+local 99_percentile = r(r2)
+levelsof time, local(unique_years)
+
+foreach year in `unique_years' {
+use "D:\TFG PABLO\finaldata.dta", clear
+if `year' == 1996 continue
+keep if time == `year'
+gsort - markup
+gen ranking_`year' = _n
+gen log_rank_`year' = log(ranking)
+ 
+gen log_markup_`year' = log(markup)
+scatter log_rank_`year' log_markup_`year' if markuptr==1
+graph export "D:\TFG PABLO\Gráficos\scatter_trimmed_`year'.png", replace
+}
