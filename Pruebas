@@ -560,9 +560,11 @@ graph export "D:\TFG PABLO\Gráficos\scatter_trimmed_`year'.png", replace
 }
 
 drop if markup ==.
-_pctile markup, p(1 99)
-local 1_percentile = r(r1)
-local 99_percentile = r(r2)
+sort time
+drop if markup<p005 | markup>p995
+by time: egen p005 = pctile(markup), p(0.5)
+by time: egen p995 = pctile(markup), p(99.5)
+
 levelsof time, local(unique_years)
 
 foreach year in `unique_years' {
@@ -574,6 +576,77 @@ gen ranking_`year' = _n
 gen log_rank_`year' = log(ranking)
  
 gen log_markup_`year' = log(markup)
-scatter log_rank_`year' log_markup_`year' if markuptr==1
-graph export "D:\TFG PABLO\Gráficos\scatter_trimmed_`year'.png", replace
+scatter log_rank_`year' log_markup_`year'
+graph export "D:\TFG PABLO\Gráficos\scatter_trimmed05_`year'.png", replace
+}
+
+levelsof time, local(unique_years)
+foreach year in `unique_years' {
+use "D:\TFG PABLO\finaldata.dta", clear
+keep if time == `year'
+save "subset_`year'.rds", replace
+}
+
+sort time
+by time: egen p1 = pctile(markup), p(1)
+by time: egen p99 = pctile(markup), p(99)
+drop if markup<p1 | markup>p99
+
+
+
+
+
+
+
+
+
+
+
+might work:
+keep if time==2020
+_pctile markup, p(0.5 99.5)
+
+
+local 005_percentile = r(r1)
+
+local 995_percentile = r(r2)
+
+gen markuptr = inrange(markup, `005_percentile', `995_percentile')
+
+
+
+scatter log_rank_`year' log_markup_`year' if markuptr == 1
+
+
+
+
+install.packages("conpl")
+library(conpl)
+
+# Assuming your data frame is named 'data'
+years <- 1997:2020
+
+for (year in years) {
+  data_year <- data[data$time == year, "markup"]
+  data_matrix_year <- as.matrix(data_year)
+  m_pl_year <- conpl$new(data_matrix_year)
+  
+  # Estimate xmin
+  est_year <- estimate_xmin(m_pl_year)
+  m_pl_year$setXmin(est_year)
+  
+  # Bootstrap
+  bs_year <- bootstrap(m_pl_year, no_of_sims = 1000, threads = 6)
+  bs_p_year <- bootstrap_p(m_pl_year, no_of_sims = 1000, threads = 6)
+  
+  # Plotting
+  plot(m_pl_year)
+  lines(m_pl_year, col = 2, lwd = 2)
+  
+  par(mar = c(3, 3, 2, 1), mgp = c(2, 0.4, 0), tck = -.01,
+      cex.axis = 0.9, las = 1)
+  
+  plot(m_pl_year, pch = 21, bg = 2, panel.first = grid(col = "grey80"),
+       xlab = paste("Markup", year), ylab = "CDF")
+  lines(m_pl_year, col = 2, lwd = 3)
 }
