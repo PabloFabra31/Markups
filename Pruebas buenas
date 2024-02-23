@@ -390,4 +390,6 @@ grid()
 
 #aggregate values
 ssc desc _gwmean
-egen harmean = wmean(markup), by(time) w(goshare)
+egen agtotal_go = total(go), by(time)
+gen ag_share = go / agtotal_go
+egen harmean = wmean(markup), by(time) w(ag_share)
