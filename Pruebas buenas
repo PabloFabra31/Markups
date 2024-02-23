@@ -380,3 +380,14 @@ plot(data$Year, data$Exponent,
 
 # Add grid for better readability
 grid()
+
+
+
+
+
+
+
+
+#aggregate values
+ssc desc _gwmean
+egen harmean = wmean(markup), by(time) w(goshare)
