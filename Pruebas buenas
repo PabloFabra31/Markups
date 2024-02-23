@@ -1,0 +1,13 @@
+data <- read_dta('D:/TFG PABLO/finaldata.dta')
+data <- subset(data, !is.na(markup))
+
+data_2019 <- data[data$time == 2019, "markup"]
+data_matrix_2019 <- as.matrix(data_2019)
+m_pl_2019 = conpl$new(data_matrix_2019)
+est_2019 = estimate_xmin(m_pl_2019)
+m_pl_2019$setXmin(est_2019)
+bs_2019 = bootstrap(m_pl_2019, no_of_sims = 1000, threads = 6)
+bs_p_2019 = bootstrap_p(m_pl_2019, no_of_sims = 1000, threads = 6)
+plot(m_pl_2019, pch = 21, bg = 2, panel.first = grid(col = "grey80"),
+     xlab = "Markup 2020", ylab = "CDF")
+lines(m_pl_2019, col = 2, lwd = 2)
