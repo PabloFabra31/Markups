@@ -568,7 +568,7 @@ by time: egen p995 = pctile(markup), p(99.5)
 levelsof time, local(unique_years)
 
 foreach year in `unique_years' {
-use "D:\TFG PABLO\finaldata.dta", clear
+use "D:/TFG PABLO/cobdinvopatri1b.dta", clear
 if `year' == 1996 continue
 keep if time == `year'
 gsort - markup
@@ -577,7 +577,7 @@ gen log_rank_`year' = log(ranking)
  
 gen log_markup_`year' = log(markup)
 scatter log_rank_`year' log_markup_`year'
-graph export "D:\TFG PABLO\Gráficos\scatter_trimmed05_`year'.png", replace
+graph export "D:\TFG PABLO\Gráficos2\scatter_`year'.png", replace
 }
 
 levelsof time, local(unique_years)
