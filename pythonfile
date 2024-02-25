@@ -1,0 +1,11 @@
+import pandas as pd
+import powerlaw
+import numpy as np
+
+file_path = r"D:\TFG PABLO\cobdinvopatri1b.dta"
+
+# Read Stata data file using pandas
+df = pd.read_stata(file_path)
+
+data = df['time'] == 2019
+print(data.head())
