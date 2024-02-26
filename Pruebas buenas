@@ -441,7 +441,7 @@ print(results.power_law.xmin)
 R, p = results.distribution_compare('power_law', 'truncated_power_law')
 
 
-
+levelsof time, local(unique_years)
 foreach year in `unique_years' {
 use "D:\TFG PABLO\data_markupscobdinvopacf.dta", clear
 if `year' == 1996 continue
