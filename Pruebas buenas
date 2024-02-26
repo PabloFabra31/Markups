@@ -409,3 +409,33 @@ matrix_values <- as.vector(rounded_matrix)
 
 x<-matrix_values
 a <- plfit(x,"limit",34)
+
+
+
+
+
+#25/02/2024
+foreach year in `unique_years' {
+use "D:/TFG PABLO/cobdinvopatri1b.dta", clear
+if `year' == 1996 continue
+keep if time == `year'
+gsort - markdown
+gen rankingd_`year' = _n
+gen log_rankd_`year' = log(rankingd_`year')
+ 
+gen log_markup_`year' = log(markup)
+regress log_rank_`year' log_markup_`year'
+scatter log_rank_`year' log_markup_`year' if markuptr==1
+graph export "D:\TFG PABLO\Gráficos\scatter_trimmed_`year'.png", replace
+}
+#26/02/2024
+file_path = r"D:\TFG PABLO\data2019.csv"
+
+# Read Stata data file using pandas
+data = pd.read_csv(file_path)
+data = data.values.tolist()
+flattened_data = [item for sublist in data for item in sublist]
+results = powerlaw.Fit(flattened_data)
+print(results.power_law.alpha)
+print(results.power_law.xmin)
+R, p = results.distribution_compare('power_law', 'truncated_power_law')
