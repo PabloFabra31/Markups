@@ -9,3 +9,173 @@ df = pd.read_stata(file_path)
 
 data = df['time'] == 2019
 print(data.head())
+
+
+# Calculate the sorted data of the real data
+sorted_data_real = np.sort(data)
+
+# Calculate the CCDF of the real data
+ccdf_data_real = np.arange(1, len(sorted_data_real) + 1) / len(sorted_data_real)
+
+# Plot the CCDF of the real data
+plt.plot(sorted_data_real, ccdf_data_real, label='CCDF of Real Data')
+
+# Calculate the CCDF of the generated samples from the exponential
+ccdf_data_generated_exp = np.arange(1, len(sorted_data_generated_exp) + 1) / len(sorted_data_generated_exp)
+
+# Plot the CCDF of the generated samples from the exponential
+plt.plot(sorted_data_generated_exp, ccdf_data_generated_exp, label='CCDF of Generated Data (Exponential)')
+
+plt.xlabel('Value')
+plt.ylabel('Complementary Cumulative Distribution Function (CCDF)')
+plt.legend()
+plt.show()
+
+print("Exponential Parameters:")
+print("Scale (lambda):", fit_params[0])
+print("Location:", fit_params[1])
+Exponential Parameters:
+Scale (lambda): 0.00012262450763955712
+Location: 2.825643539428711
+
+
+
+
+
+
+
+#used finally
+ Calculate the sorted data of the real data
+sorted_data_real = np.sort(data)
+
+# Calculate the CCDF of the real data
+ccdf_data_real = 1 - np.arange(1, len(sorted_data_real) + 1) / len(sorted_data_real)
+
+# Plot the CCDF of the real data
+plt.plot(sorted_data_real, ccdf_data_real, label='Observed Data')
+
+# Calculate the CCDF of the generated samples from the exponential
+ccdf_data_generated_exp = 1 - np.arange(1, len(sorted_data_generated_exp) + 1) / len(sorted_data_generated_exp)
+
+# Plot the CCDF of the generated samples from the exponential with dashed line style
+plt.plot(sorted_data_generated_exp, ccdf_data_generated_exp, linestyle='--', label='Exponential fit')
+
+plt.xlabel('Markdown Value')
+plt.ylabel('P(X≥x)')
+plt.legend()
+
+# Set the y-axis to be in scales of 10 to the power of something
+plt.yscale('log')
+plt.xscale('log')
+
+plt.show()
+
+print("Exponential Parameters:")
+print("Scale (lambda):", fit_params[0])
+print("Location:", fit_params[1])
+
+
+
+
+
+file_path = r"D:\TFG PABLO\markup.dta"
+import pandas as pd
+import powerlaw
+# Read Stata data file using pandas
+df = pd.read_stata(file_path)
+df['time'] = df['time'].round().astype(int)
+subset_2019 = df[df['time'] == 2020]
+data = subset_2019['markup']
+data = data.values.tolist()
+fit = powerlaw.Fit(data, xmin=(1.5, 3.0))
+
+print(fit.truncated_power_law.alpha)
+print(fit.truncated_power_law.xmin)
+print(fit.truncated_power_law.Lambda)
+
+
+
+
+#For the p-value construction: 
+def truncated_power_law_likelihoods(data, alpha, Lambda, xmin, xmax=False, discrete=False):
+    if alpha < 0 or Lambda < 0:
+        from numpy import tile
+        from sys import float_info
+        return tile(10 ** float_info.min_10_exp, len(data))
+
+    data = data[data >= xmin]
+    if xmax:
+        data = data[data <= xmax]
+
+    from numpy import exp
+    if not discrete:
+        from mpmath import gammainc
+#        from scipy.special import gamma, gammaincc #Not NEARLY accurate enough to do the job
+#        likelihoods = (data**-alpha)*exp(-Lambda*data)*\
+#                (Lambda**(1-alpha))/\
+#                float(gammaincc(1-alpha,Lambda*xmin))
+        #Simplified so as not to throw a nan from infs being divided by each other
+        likelihoods = (Lambda ** (1 - alpha)) /\
+                      ((data ** alpha) * exp(Lambda * data) * gammainc(1 - alpha, Lambda * xmin)).astype(float)
+    if discrete:
+        if not xmax:
+            xmax = max(data)
+        if xmax:
+            from numpy import arange
+            X = arange(xmin, xmax + 1)
+            PDF = (X ** -alpha) * exp(-Lambda * X)
+            PDF = PDF / sum(PDF)
+            likelihoods = PDF[(data - xmin).astype(int)]
+    from sys import float_info
+    likelihoods[likelihoods == 0] = 10 ** float_info.min_10_exp
+    return likelihoods
+
+
+
+truncated_power_law_likelihoods(data, fit.truncated_power_law.alpha, fit.truncated_power_law.Lambda, fit.truncated_power_law.xmin, xmax=False, discrete=False)
+
+
+
+
+import powerlaw
+import numpy as np
+
+def simulate_truncated_power_law(n, alpha, Lambda, xmin, xmax=None):
+    """
+    Simulate data from a truncated power-law distribution.
+
+    Parameters:
+    - n: Number of data points to simulate.
+    - alpha: Exponent parameter of the power-law.
+    - Lambda: Decay parameter of the power-law.
+    - xmin: Minimum value of the distribution.
+    - xmax: Maximum value of the distribution (optional).
+
+    Returns:
+    - Simulated data array.
+    """
+    if xmax is None:
+        return powerlaw.Power_Law(xmin=xmin, parameters=[alpha - 1]).generate_random(n)
+    else:
+        return powerlaw.Truncated_Power_Law(xmin=xmin, xmax=xmax, parameters=[alpha - 1, Lambda]).generate_random(n)
+
+# Set your actual data and parameters
+actual_data = data
+actual_alpha = fit.truncated_power_law.alpha
+actual_Lambda = fit.truncated_power_law.Lambda
+actual_xmin = fit.truncated_power_law.xmin
+actual_xmax = None  # Set to None if there is no upper bound
+
+# Set the number of simulations
+num_simulations = 8100  # Adjust as needed
+
+# Simulate likelihoods
+simulated_likelihoods = []
+for _ in range(num_simulations):
+    simulated_data = simulate_truncated_power_law(len(actual_data), actual_alpha, actual_Lambda, actual_xmin, actual_xmax)
+    likelihood = truncated_power_law_likelihoods(simulated_data, actual_alpha, actual_Lambda, actual_xmin, actual_xmax)
+    simulated_likelihoods.append(likelihood)
+actual_likelihood = truncated_power_law_likelihoods(actual_data, actual_alpha, actual_Lambda, actual_xmin, actual_xmax)
+p_value = np.mean(simulated_likelihoods >= actual_likelihood)
+
+print(f"P-value: {p_value}")
