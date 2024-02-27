@@ -447,10 +447,10 @@ use "D:\TFG PABLO\data_markupscobdinvopacf.dta", clear
 if `year' == 1996 continue
 keep if time == `year'
 gsort - markdown
-gen rankingd_`year' = _n
-gen log_rankd_`year' = log(rankingd_`year')
+gen rankingd = _n
+gen log_rankd_`year' = log(rankingd)
  
 gen log_markdown_`year' = log(markdown)
-scatter log_rank_`year' log_markup_`year'
+scatter log_rankd_`year' log_markdown_`year'
 graph export "D:\TFG PABLO\Gráficos2\mkdwn_`year'.png", replace
 }
